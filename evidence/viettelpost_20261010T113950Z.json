@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "status": 200,
+  "len": 120,
+  "sha256": "ad9b3631e833ba4d6860e154753a045c94c784d046cd86f57c3a2f72bd3723a9",
+  "body": "{\"status\":200,\"error\":false,\"message\":\"OK\",\"data\":[{\"PROVINCE_ID\":1,\"PROVINCE_CODE\":\"HNI\",\"PROVINCE_NAME\":\"H\u00e0 N\u1ed9i\"}]}"
+}
