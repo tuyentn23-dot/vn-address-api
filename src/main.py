@@ -42,3 +42,24 @@ def validate_bank(bin: str = Query(...)):
 @app.get('/stats')
 def stats():
 	return {'name': 'VN Address Normalizer', 'version': '1.0.0', 'provinces': len(PROVINCES), 'endpoints': ['health','provinces','normalize','validate-phone','validate-bank']}
+@app.get('/validate-cccd')
+def validate_cccd(id: str = Query(...)):
+	d = re.sub(r'[^0-9]', '', id)
+	ok = len(d) == 12
+	g = 'male' if ok and int(d[3])%2==0 else ('female' if ok else None)
+	return {'ok':ok,'prov':d[:3] if ok else None,'gender':g}
+
+@app.get('/validate-email')
+def validate_email(e: str = Query(...)):
+	p = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,}$'
+	ok = bool(re.match(p, e))
+	d = e.split(chr(64))[-1].lower() if chr(64) in e else None
+	return {'ok':ok,'domain':d}
+
+@app.get('/validate-taxcode')
+def validate_taxcode(code: str = Query(...)):
+	d = re.sub(r'[^0-9]', '', code)
+	n = len(d)
+	typ = 'company' if n==10 else ('branch' if n==13 else 'invalid')
+	return {'ok':n in (10,13),'normalized':d,'type':typ}
+
