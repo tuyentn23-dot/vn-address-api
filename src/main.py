@@ -1,65 +1,187 @@
+"""Bounded, offline Vietnam province normalization and syntax checks.
+
+No identity, ownership, deliverability or government registry verification.
+Business routes fail closed unless the configured RapidAPI proxy secret matches.
+"""
+import hmac
+import json
+import os
+import re
+import unicodedata
+from pathlib import Path
+from typing import Literal
+
 from fastapi import FastAPI, Query
-import json, os, re, urllib.request
-ROOT = 'D:/TNT_AI/bug_hunter/projects/rapidapi_vn'
-PROVINCES = json.load(open(os.path.join(ROOT, 'vn_provinces.json'), encoding='utf-8'))
-app = FastAPI(title='VN Address Normalizer')
-LOOKUP = {p.get('codename','').lower(): p for p in PROVINCES}
-@app.get('/health')
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+ROOT = Path(__file__).resolve().parents[1]
+CURRENT = json.loads((ROOT / 'data/provinces_2025.json').read_text(encoding='utf-8'))
+LEGACY = json.loads((ROOT / 'vn_provinces.json').read_text(encoding='utf-8'))
+Version = Literal['2025', 'legacy']
+
+
+def plain(value):
+    value = unicodedata.normalize('NFKD', value.lower().replace('đ', 'd'))
+    value = ''.join(c for c in value if not unicodedata.combining(c))
+    return ' '.join(re.sub(r'[^a-z0-9]+', ' ', value).split())
+
+
+def alias(value):
+    return re.sub(r'^(tinh|thanh pho|tp)\s+', '', plain(value))
+
+
+def dataset(version):
+    rows = CURRENT['items'] if version == '2025' else LEGACY
+    return [{'code': str(p['code']).zfill(2), 'name': p['name']} for p in rows]
+
+
+def normalize_value(value, version='2025'):
+    text = plain(value)
+    matches = []
+    for row in dataset(version):
+        name = alias(row['name'])
+        names = {name}
+        if row['code'] == '79':
+            names.update(('hcm', 'tphcm', 'sai gon', 'saigon'))
+        segments = [plain(s) for s in re.split(r'[,;]', value)]
+        def found(n):
+            if len(n.split()) == 1 and n not in ('hcm', 'tphcm', 'saigon'):
+                return n in segments or bool(re.search(r'\b(?:tinh|thanh pho|tp) ' + re.escape(n) + r'\b', text))
+            return bool(re.search(r'(?<![a-z0-9])' + re.escape(n) + r'(?![a-z0-9])', text))
+        if any(found(n) for n in names):
+            matches.append(row)
+    status = 'matched' if len(matches) == 1 else ('ambiguous' if matches else 'not_found')
+    return {'ok': status == 'matched', 'status': status, 'province': matches[0] if status == 'matched' else None,
+            'candidates': matches, 'datasetVersion': version, 'scope': 'province_only',
+            'effectiveFrom': CURRENT['effectiveFrom'] if version == '2025' else 'historical_before_2025_07',
+            'note': 'Snapshot lookup; not a geocode, full-address validation, or a legacy-to-current conversion.'}
+
+
+class Batch(BaseModel):
+    queries: list[str] = Field(min_length=1, max_length=50)
+    version: Version = '2025'
+
+
+app = FastAPI(title='Vietnam Checkout Data Toolkit', version='2.0.0',
+              description='Province snapshot lookup with explicit ambiguity and bounded batch processing. '
+                          'Phone/email/tax/ID endpoints check syntax only. No identity or legal validation.',
+              docs_url=None, redoc_url=None, openapi_url=None)
+
+
+class Guard:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope['type'] != 'http' or scope['path'] == '/health':
+            return await self.app(scope, receive, send)
+        headers = dict(scope.get('headers', []))
+        secret = os.environ.get('RAPIDAPI_PROXY_SECRET', '')
+        if not secret:
+            return await JSONResponse({'detail': 'Service not configured'}, status_code=503)(scope, receive, send)
+        supplied = headers.get(b'x-rapidapi-proxy-secret', b'')
+        if not hmac.compare_digest(supplied, secret.encode('utf-8')):
+            return await JSONResponse({'detail': 'Unauthorized'}, status_code=401)(scope, receive, send)
+        if len(scope.get('query_string', b'')) > 4096:
+            return await JSONResponse({'detail': 'Query too large'}, status_code=413)(scope, receive, send)
+        body = bytearray()
+        while True:
+            message = await receive()
+            if message['type'] == 'http.disconnect':
+                return
+            body.extend(message.get('body', b''))
+            if len(body) > 65536:
+                return await JSONResponse({'detail': 'Body too large'}, status_code=413)(scope, receive, send)
+            if not message.get('more_body', False):
+                break
+        consumed = False
+
+        async def replay():
+            nonlocal consumed
+            if not consumed:
+                consumed = True
+                return {'type': 'http.request', 'body': bytes(body), 'more_body': False}
+            return await receive()
+
+        await self.app(scope, replay, send)
+
+
+app.add_middleware(Guard)
+
+
+@app.get('/health', include_in_schema=False)
 def health():
-	return {'ok': True, 'provinces': len(PROVINCES)}
-@app.get('/provinces')
-def list_provinces():
-	return {'count': len(PROVINCES), 'items': [{'code': p.get('code'), 'name': p.get('name'), 'codename': p.get('codename')} for p in PROVINCES]}
-@app.get('/normalize')
-def normalize(q: str = Query(...)):
-	norm = q.lower().replace(chr(32), chr(95))
-	matches = [p for k, p in LOOKUP.items() if k and (k in norm or norm in k)]
-	if not matches:
-		return {'ok': False, 'input': q, 'province': None}
-	best = matches[0]
-	return {'ok': True, 'input': q, 'province': {'code': best.get('code'), 'name': best.get('name'), 'codename': best.get('codename')}}
-@app.get('/validate-phone')
-def validate_phone(p: str = Query(...)):
-	digits = re.sub(r'[^0-9]', '', p)
-	if digits.startswith('84'):
-		digits = chr(48) + digits[2:]
-	valid = len(digits) == 10 and digits[:2] in ('03','05','07','08','09')
-	return {'ok': valid, 'input': p, 'normalized': digits, 'prefix': digits[:2] if valid else None}
-@app.get('/validate-bank')
-def validate_bank(bin: str = Query(...)):
-	try:
-		req = urllib.request.Request('https://api.vietqr.io/v2/banks', headers={'User-Agent': 'TNT/1.0'})
-		resp = urllib.request.urlopen(req, timeout=5)
-		data = json.loads(resp.read())
-		banks = data.get('data', [])
-		match = [b for b in banks if str(b.get('bin')) == str(bin)]
-		if match:
-			b = match[0]
-			return {'ok': True, 'bin': bin, 'shortName': b.get('shortName'), 'name': b.get('name')}
-		return {'ok': False, 'bin': bin, 'error': 'Bank not found'}
-	except Exception as e:
-		return {'ok': False, 'error': str(e)[:100]}
-@app.get('/stats')
+    return {'ok': True, 'version': app.version, 'currentProvinceCount': len(CURRENT['items'])}
+
+
+@app.get('/provinces', tags=['Province lookup'])
+def provinces(version: Version = '2025'):
+    """Return the 2025 snapshot or an explicitly historical 63-province list."""
+    rows = dataset(version)
+    return {'datasetVersion': version, 'count': len(rows), 'items': rows,
+            'sourceUrl': CURRENT['sourceUrl'] if version == '2025' else 'https://provinces.open-api.vn/api/v1/',
+            'snapshotVerifiedUtc': CURRENT['snapshotVerifiedUtc'] if version == '2025' else 'unknown'}
+
+
+@app.get('/normalize', tags=['Province lookup'])
+def normalize(q: str = Query(min_length=1, max_length=500), version: Version = '2025'):
+    """Find province-name mentions. Multiple province mentions remain ambiguous."""
+    return normalize_value(q, version)
+
+
+@app.post('/normalize/batch', tags=['Province lookup'])
+def normalize_batch(batch: Batch):
+    """Normalize up to 50 values, maintaining their order. Long values are rejected."""
+    if any(not q.strip() or len(q) > 500 for q in batch.queries):
+        return JSONResponse({'detail': 'Each query must contain 1 to 500 characters'}, status_code=422)
+    rows = [normalize_value(q, batch.version) for q in batch.queries]
+    return {'count': len(rows), 'results': rows,
+            'summary': {s: sum(r['status'] == s for r in rows) for s in ('matched', 'ambiguous', 'not_found')}}
+
+
+@app.get('/validate-phone', tags=['Syntax checks'])
+def phone(p: str = Query(min_length=1, max_length=40)):
+    """Check Vietnamese mobile number shape only; no live-number verification."""
+    allowed = bool(re.fullmatch(r'\+?[0-9\s().-]+', p))
+    digits = re.sub(r'[^0-9]', '', p) if allowed else ''
+    if digits.startswith('84'):
+        digits = '0' + digits[2:]
+    ok = allowed and bool(re.fullmatch(r'0[35789][0-9]{8}', digits))
+    return {'ok': ok, 'normalized': digits if ok else None, 'scope': 'syntax_only', 'verifiedActive': False}
+
+
+@app.get('/validate-email', tags=['Syntax checks'])
+def email(e: str = Query(min_length=1, max_length=254)):
+    """Conservative ASCII email syntax check; no DNS or mailbox verification."""
+    parts = e.split('@')
+    ok = False
+    if len(parts) == 2:
+        local, domain = parts
+        labels = domain.split('.')
+        ok = (0 < len(local) <= 64 and not local.startswith('.') and not local.endswith('.') and '..' not in local
+              and bool(re.fullmatch(r"[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+", local))
+              and len(labels) >= 2 and all(re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?', s) for s in labels)
+              and bool(re.fullmatch(r'[a-zA-Z]{2,63}', labels[-1])))
+    return {'ok': bool(ok), 'scope': 'ascii_syntax_only', 'verifiedDeliverable': False}
+
+
+@app.get('/validate-taxcode', tags=['Syntax checks'])
+def taxcode(code: str = Query(min_length=1, max_length=20)):
+    """Check 10-digit tax code or 10+3-digit branch shape; no registry query."""
+    ok = bool(re.fullmatch(r'[0-9]{10}(?:-?[0-9]{3})?', code))
+    return {'ok': ok, 'scope': 'syntax_only', 'registryVerified': False,
+            'normalized': code.replace('-', '') if ok else None}
+
+
+@app.get('/validate-cccd', tags=['Syntax checks'], deprecated=True)
+def id_shape(id: str = Query(min_length=1, max_length=20)):
+    """Deprecated: 12 ASCII digits only. No identity or encoded-demographic inference."""
+    return {'ok': bool(re.fullmatch(r'[0-9]{12}', id)), 'scope': 'length_and_digits_only', 'identityVerified': False}
+
+
+@app.get('/stats', tags=['Metadata'])
 def stats():
-	return {'name': 'VN Address Normalizer', 'version': '1.0.0', 'provinces': len(PROVINCES), 'endpoints': ['health','provinces','normalize','validate-phone','validate-bank']}
-@app.get('/validate-cccd')
-def validate_cccd(id: str = Query(...)):
-	d = re.sub(r'[^0-9]', '', id)
-	ok = len(d) == 12
-	g = 'male' if ok and int(d[3])%2==0 else ('female' if ok else None)
-	return {'ok':ok,'prov':d[:3] if ok else None,'gender':g}
-
-@app.get('/validate-email')
-def validate_email(e: str = Query(...)):
-	p = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,}$'
-	ok = bool(re.match(p, e))
-	d = e.split(chr(64))[-1].lower() if chr(64) in e else None
-	return {'ok':ok,'domain':d}
-
-@app.get('/validate-taxcode')
-def validate_taxcode(code: str = Query(...)):
-	d = re.sub(r'[^0-9]', '', code)
-	n = len(d)
-	typ = 'company' if n==10 else ('branch' if n==13 else 'invalid')
-	return {'ok':n in (10,13),'normalized':d,'type':typ}
-
+    return {'name': app.title, 'version': app.version, 'datasets': {'2025': 34, 'legacy': 63},
+            'dataSource': CURRENT['sourceUrl'], 'effectiveFrom': CURRENT['effectiveFrom'],
+            'limitations': ['province lookup only', 'snapshot not live registry', 'syntax checks not identity verification']}

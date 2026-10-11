@@ -1,0 +1,41 @@
+{
+  "productId": "vietnam-checkout-data-toolkit",
+  "version": "2.0.0",
+  "name": "Vietnam Checkout Data Toolkit",
+  "backendUrl": "unknown",
+  "category": "Data",
+  "stage": "prepared_unpublished",
+  "listingUrl": "unknown",
+  "apiId": "unknown",
+  "paidCustomers": 0,
+  "revenueConfirmed": false,
+  "proxySecretConfigured": "unknown",
+  "importVerifiedInSellerAccount": false,
+  "publishApproved": false,
+  "pricingProposed": [
+    {
+      "name": "BASIC",
+      "monthlyUsd": "0",
+      "requestsMonthly": 100,
+      "hardLimit": true,
+      "requestsPerMinute": 10
+    },
+    {
+      "name": "PRO",
+      "monthlyUsd": "9.99",
+      "requestsMonthly": 10000,
+      "hardLimit": true,
+      "requestsPerMinute": 60
+    },
+    {
+      "name": "ULTRA",
+      "monthlyUsd": "29.99",
+      "requestsMonthly": 50000,
+      "hardLimit": true,
+      "requestsPerMinute": 120
+    }
+  ],
+  "costNote": "Offline snapshot processing, no upstream paid calls. Hosting costs unknown; 25% platform fee plus payout fees.",
+  "nextAction": "Verify backend and seller import/pricing/security; obtain publication approval before public listing",
+  "openapiSha256": "bff35969523472e633ef3984da73087c51576da1a4423ce70fff06a93f7de679"
+}

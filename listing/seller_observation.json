@@ -1,0 +1,18 @@
+{
+  "checkedAtUtc": "2026-10-11T03:02:58.787208+00:00",
+  "providerId": "12332384",
+  "slug": "vn-address-bank-validator",
+  "apiId": "api_66790dde-033f-4bb8-a75a-64e7d6752ca5",
+  "apiVersionId": "apiversion_87c7a5ce-23bf-4782-bbb7-3251a5a0ad93",
+  "sellerLoginVerified": true,
+  "visibility": "Private",
+  "baseUrlConfigured": false,
+  "downloadedFileAssessment": "The Downloads file is an OpenAPI specification URL, not a live backend URL. The historical tunnel URL in the project is no longer resolvable.",
+  "endpointCount": 0,
+  "callsLast7Days": 0,
+  "paidPlanUsersObserved": 0,
+  "revenueConfirmed": false,
+  "source": "Authenticated RapidAPI Provider Dashboard UI",
+  "nextAction": "Obtain public HTTPS backend URL and deployment platform, deploy and verify v2 before updating this private listing",
+  "additionalDiscovery": "Existing seller UI exposes OpenAPI CI/CD provisioning link; public standard-account applicability and cost not yet verified"
+}

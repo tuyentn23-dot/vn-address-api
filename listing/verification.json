@@ -1,0 +1,23 @@
+{
+  "checkedAtUtc": "2026-10-11T02:59:15.726282+00:00",
+  "testsPassed": 17,
+  "syntaxCheck": "passed",
+  "officialProvinceRows": 34,
+  "offlineLegacyProvinceRows": 63,
+  "protectedRoutesFailClosed": true,
+  "actualSellerImportVerified": false,
+  "backendDeployed": false,
+  "published": false,
+  "paidCustomers": "unknown",
+  "revenueConfirmed": false,
+  "userReportedExistingAccounts": [
+    "RapidAPI seller",
+    "PayPal",
+    "HTTPS hosting"
+  ],
+  "blockers": [
+    "hosting URL and deployment method pending",
+    "seller login pending"
+  ],
+  "nextAction": "Verify user backend and seller session; prepare private draft then request final publication/legal approval if required"
+}

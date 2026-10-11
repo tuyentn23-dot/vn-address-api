@@ -5,6 +5,9 @@ services:
   region: singapore
   plan: free
   buildCommand: pip install -r requirements.txt
-  startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+  startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT --no-access-log
   healthCheckPath: /health
   autoDeploy: true
+  envVars:
+  - key: RAPIDAPI_PROXY_SECRET
+    sync: false

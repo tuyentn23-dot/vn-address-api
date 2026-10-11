@@ -1,0 +1,390 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vietnam Checkout Data Toolkit",
+    "description": "Province snapshot lookup with explicit ambiguity and bounded batch processing. Phone/email/tax/ID endpoints check syntax only. No identity or legal validation.",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/provinces": {
+      "get": {
+        "tags": [
+          "Province lookup"
+        ],
+        "summary": "Provinces",
+        "description": "Return the 2025 snapshot or an explicitly historical 63-province list.",
+        "operationId": "provinces_provinces_get",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "2025",
+                "legacy"
+              ],
+              "type": "string",
+              "default": "2025",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/normalize": {
+      "get": {
+        "tags": [
+          "Province lookup"
+        ],
+        "summary": "Normalize",
+        "description": "Find province-name mentions. Multiple province mentions remain ambiguous.",
+        "operationId": "normalize_normalize_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "2025",
+                "legacy"
+              ],
+              "type": "string",
+              "default": "2025",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/normalize/batch": {
+      "post": {
+        "tags": [
+          "Province lookup"
+        ],
+        "summary": "Normalize Batch",
+        "description": "Normalize up to 50 values, maintaining their order. Long values are rejected.",
+        "operationId": "normalize_batch_normalize_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Batch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/validate-phone": {
+      "get": {
+        "tags": [
+          "Syntax checks"
+        ],
+        "summary": "Phone",
+        "description": "Check Vietnamese mobile number shape only; no live-number verification.",
+        "operationId": "phone_validate_phone_get",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "title": "P"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/validate-email": {
+      "get": {
+        "tags": [
+          "Syntax checks"
+        ],
+        "summary": "Email",
+        "description": "Conservative ASCII email syntax check; no DNS or mailbox verification.",
+        "operationId": "email_validate_email_get",
+        "parameters": [
+          {
+            "name": "e",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 254,
+              "title": "E"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/validate-taxcode": {
+      "get": {
+        "tags": [
+          "Syntax checks"
+        ],
+        "summary": "Taxcode",
+        "description": "Check 10-digit tax code or 10+3-digit branch shape; no registry query.",
+        "operationId": "taxcode_validate_taxcode_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20,
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "tags": [
+          "Metadata"
+        ],
+        "summary": "Stats",
+        "operationId": "stats_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Batch": {
+        "properties": {
+          "queries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Queries"
+          },
+          "version": {
+            "type": "string",
+            "enum": [
+              "2025",
+              "legacy"
+            ],
+            "title": "Version",
+            "default": "2025"
+          }
+        },
+        "type": "object",
+        "required": [
+          "queries"
+        ],
+        "title": "Batch"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://REPLACE_WITH_VERIFIED_BACKEND.example"
+    }
+  ]
+}
