@@ -1,0 +1,174 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "VN Address Bank Validator",
+    "version": "1.0.0",
+    "description": "Normalize Vietnamese addresses (63 provinces), validate VN phone numbers, bank BIN codes via VietQR. For fintech, logistics, e-commerce."
+  },
+  "servers": [
+    {
+      "url": "https://c0ab2f9fc6e8f149-123-21-253-60.serveousercontent.com"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/provinces": {
+      "get": {
+        "summary": "List Provinces",
+        "operationId": "provinces",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/normalize": {
+      "get": {
+        "summary": "Normalize Address",
+        "operationId": "normalize",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/validate-phone": {
+      "get": {
+        "summary": "Validate Phone",
+        "operationId": "phone",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/validate-bank": {
+      "get": {
+        "summary": "Validate Bank BIN",
+        "operationId": "bank",
+        "parameters": [
+          {
+            "name": "bin",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/validate-cccd": {
+      "get": {
+        "summary": "Validate CCCD",
+        "operationId": "cccd",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/validate-taxcode": {
+      "get": {
+        "summary": "Validate Tax Code",
+        "operationId": "taxcode",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/validate-email": {
+      "get": {
+        "summary": "Validate Email",
+        "operationId": "email",
+        "parameters": [
+          {
+            "name": "e",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "API Stats",
+        "operationId": "stats",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}
