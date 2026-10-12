@@ -4,6 +4,9 @@ No identity, ownership, deliverability or government registry verification.
 Business routes fail closed unless the configured RapidAPI proxy secret matches.
 """
 import hmac
+import hashlib
+import threading
+from datetime import datetime, timezone
 import json
 import os
 import re
@@ -19,6 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 CURRENT = json.loads((ROOT / 'data/provinces_2025.json').read_text(encoding='utf-8'))
 LEGACY = json.loads((ROOT / 'vn_provinces.json').read_text(encoding='utf-8'))
 Version = Literal['2025', 'legacy']
+COUNTERS = {'total_requests':0,'total_errors':0}
+OBSERVED_USERS = set()
+COUNTER_LOCK = threading.Lock()
+METRICS_STARTED = datetime.now(timezone.utc).isoformat()
 
 
 def plain(value):
@@ -77,6 +84,12 @@ class Guard:
         if scope['type'] != 'http' or scope['path'] == '/health':
             return await self.app(scope, receive, send)
         headers = dict(scope.get('headers', []))
+        if scope['path'] == '/metrics':
+            admin=os.environ.get('ADMIN_TOKEN','')
+            if not admin:return await JSONResponse({'detail':'Metrics not configured'},status_code=503)(scope,receive,send)
+            if not hmac.compare_digest(headers.get(b'authorization',b''),('Bearer '+admin).encode()):
+                return await JSONResponse({'detail':'Unauthorized'},status_code=401)(scope,receive,send)
+            return await self.app(scope,receive,send)
         secret = os.environ.get('RAPIDAPI_PROXY_SECRET', '')
         if not secret:
             return await JSONResponse({'detail': 'Service not configured'}, status_code=503)(scope, receive, send)
@@ -104,10 +117,25 @@ class Guard:
                 return {'type': 'http.request', 'body': bytes(body), 'more_body': False}
             return await receive()
 
-        await self.app(scope, replay, send)
+        async def counted_send(message):
+            if message['type']=='http.response.start':
+                with COUNTER_LOCK:
+                    COUNTERS['total_requests']+=1
+                    COUNTERS['total_errors']+=int(message['status']>=400)
+                    salt=os.environ.get('ADMIN_TOKEN','')
+                    user=headers.get(b'x-rapidapi-user',b'')
+                    if salt and user:OBSERVED_USERS.add(hmac.new(salt.encode(),user,hashlib.sha256).hexdigest())
+            await send(message)
+        await self.app(scope, replay, counted_send)
 
 
 app.add_middleware(Guard)
+
+@app.get('/metrics',include_in_schema=False)
+def metrics():
+    with COUNTER_LOCK:
+        return {**COUNTERS,'unique_subscribers':len(OBSERVED_USERS) if os.environ.get('ADMIN_TOKEN') else None,
+                'process_started_at':METRICS_STARTED,'counter_scope':'process_memory_since_start; includes owner; not paid subscribers','storage_persistence':'ephemeral'}
 
 
 @app.get('/health', include_in_schema=False)
